@@ -5,280 +5,366 @@
 
 import express from 'express';
 import path from 'path';
-import fs from 'fs';
 import { createServer as createViteServer } from 'vite';
+import { MongoClient, Db } from 'mongodb';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+// ──────────────────────────────────────────────
+// Default / Seed Data
+// ──────────────────────────────────────────────
+const INITIAL_PRODUCTS = [
+  {
+    id: 'prod-1',
+    title: 'Apple iPhone 15 Pro Max (256 GB) - Natural Titanium',
+    category: 'mobiles',
+    originalPrice: 159900,
+    offerPrice: 144900,
+    hasOffer: true,
+    image: '',
+    link: 'https://amazon.in',
+    description: 'Forged in titanium, featuring the revolutionary A17 Pro chip, customizable Action button, and the most powerful iPhone camera system ever with 5x optical zoom.',
+    createdAt: 1721345000000
+  },
+  {
+    id: 'prod-2',
+    title: 'Sony WH-1000XM5 Wireless Noise Cancelling Headphones',
+    category: 'electronics',
+    originalPrice: 34990,
+    offerPrice: 27999,
+    hasOffer: true,
+    image: '',
+    link: 'https://amazon.in',
+    description: 'Industry leading active noise cancellation with two processors controlling 8 microphones. Exceptional sound quality with High-Resolution Audio.',
+    createdAt: 1721345100000
+  },
+  {
+    id: 'prod-3',
+    title: 'Samsung 108 cm (43 inches) Crystal 4K Vivid Ultra HD Smart TV',
+    category: 'electronics',
+    originalPrice: 44900,
+    offerPrice: 28990,
+    hasOffer: true,
+    image: '',
+    link: 'https://amazon.in',
+    description: '4K Vivid High Dynamic Range, PurColor technology, powerful Crystal Processor 4K, and direct access to Disney+, Netflix, Prime Video.',
+    createdAt: 1721345200000
+  },
+  {
+    id: 'prod-4',
+    title: 'Nike Air Max Alpha Training & Running Shoes',
+    category: 'fashion',
+    originalPrice: 7495,
+    offerPrice: 5245,
+    hasOffer: true,
+    image: '',
+    link: 'https://amazon.in',
+    description: 'Finished with breathable engineered mesh and an air-padded heel unit, the Alpha offers maximum shock absorption and stability for high-intensity gym workouts.',
+    createdAt: 1721345300000
+  }
+];
+
+const INITIAL_CATEGORIES = [
+  { id: 'mobiles', label: 'Mobiles' },
+  { id: 'electronics', label: 'Electronics' },
+  { id: 'fashion', label: 'Fashion' },
+  { id: 'home', label: 'Home Decor' },
+  { id: 'other', label: 'Others' }
+];
+
+const INITIAL_SETTINGS = {
+  storeName: 'Shopzy',
+  tagline: 'Premium Deals Store',
+  logo: ''
+};
+
+const INITIAL_PASSWORD = '1234';
+
+// ──────────────────────────────────────────────
+// Storage Layer — MongoDB OR In-Memory fallback
+// ──────────────────────────────────────────────
+
+let db: Db | null = null;
+
+// In-memory fallback (used when MONGODB_URI is not set)
+let memProducts: any[] = [...INITIAL_PRODUCTS];
+let memCategories: any[] = [...INITIAL_CATEGORIES];
+let memSettings: any = { ...INITIAL_SETTINGS };
+let memPassword: string = INITIAL_PASSWORD;
+
+async function connectDB() {
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
+    console.warn('[DB] MONGODB_URI not set — using in-memory storage (data will reset on restart).');
+    return;
+  }
+  try {
+    const client = new MongoClient(uri);
+    await client.connect();
+    db = client.db('shopzy');
+    console.log('[DB] Connected to MongoDB Atlas ✓');
+
+    // Seed if empty
+    const productCount = await db.collection('products').countDocuments();
+    if (productCount === 0) {
+      await db.collection('products').insertMany(INITIAL_PRODUCTS);
+      console.log('[DB] Seeded initial products');
+    }
+    const catCount = await db.collection('categories').countDocuments();
+    if (catCount === 0) {
+      await db.collection('categories').insertMany(INITIAL_CATEGORIES);
+      console.log('[DB] Seeded initial categories');
+    }
+    const settingsCount = await db.collection('settings').countDocuments();
+    if (settingsCount === 0) {
+      await db.collection('settings').insertOne({ _key: 'main', ...INITIAL_SETTINGS });
+      console.log('[DB] Seeded initial settings');
+    }
+    const passCount = await db.collection('config').countDocuments({ _key: 'password' });
+    if (passCount === 0) {
+      await db.collection('config').insertOne({ _key: 'password', value: INITIAL_PASSWORD });
+      console.log('[DB] Seeded initial password');
+    }
+  } catch (e) {
+    console.error('[DB] MongoDB connection failed, falling back to in-memory:', e);
+    db = null;
+  }
+}
+
+// ──────────────────────────────────────────────
+// Helper wrappers
+// ──────────────────────────────────────────────
+
+async function getProducts() {
+  if (db) {
+    return db.collection('products').find({}, { projection: { _id: 0 } }).sort({ createdAt: -1 }).toArray();
+  }
+  return memProducts;
+}
+
+async function saveProduct(prod: any, editId?: string) {
+  if (db) {
+    if (editId) {
+      await db.collection('products').updateOne({ id: editId }, { $set: prod });
+    } else {
+      await db.collection('products').insertOne(prod);
+    }
+    return getProducts();
+  }
+  if (editId) {
+    memProducts = memProducts.map((p) => p.id === editId ? { ...p, ...prod } : p);
+  } else {
+    memProducts = [prod, ...memProducts];
+  }
+  return memProducts;
+}
+
+async function deleteProduct(id: string) {
+  if (db) {
+    await db.collection('products').deleteOne({ id });
+    return getProducts();
+  }
+  memProducts = memProducts.filter((p) => p.id !== id);
+  return memProducts;
+}
+
+async function getSettings() {
+  if (db) {
+    const doc = await db.collection('settings').findOne({ _key: 'main' }, { projection: { _id: 0, _key: 0 } });
+    return doc || INITIAL_SETTINGS;
+  }
+  return memSettings;
+}
+
+async function saveSettings(sets: any) {
+  if (db) {
+    await db.collection('settings').updateOne({ _key: 'main' }, { $set: sets }, { upsert: true });
+    return;
+  }
+  memSettings = { ...memSettings, ...sets };
+}
+
+async function getPassword() {
+  if (db) {
+    const doc = await db.collection('config').findOne({ _key: 'password' });
+    return doc?.value || INITIAL_PASSWORD;
+  }
+  return memPassword;
+}
+
+async function savePasswordToDB(pass: string) {
+  if (db) {
+    await db.collection('config').updateOne({ _key: 'password' }, { $set: { value: pass } }, { upsert: true });
+    return;
+  }
+  memPassword = pass;
+}
+
+async function getCategories() {
+  if (db) {
+    return db.collection('categories').find({}, { projection: { _id: 0 } }).toArray();
+  }
+  return memCategories;
+}
+
+async function addCategory(cat: any) {
+  if (db) {
+    await db.collection('categories').insertOne(cat);
+    return getCategories();
+  }
+  memCategories = [...memCategories, cat];
+  return memCategories;
+}
+
+async function deleteCategory(id: string) {
+  if (db) {
+    await db.collection('categories').deleteOne({ id });
+    return getCategories();
+  }
+  memCategories = memCategories.filter((c) => c.id !== id);
+  return memCategories;
+}
+
+// ──────────────────────────────────────────────
+// Express Server
+// ──────────────────────────────────────────────
 
 async function startServer() {
-  const app = express();
-  const PORT = 3000;
+  await connectDB();
 
-  // Middleware to parse JSON bodies with a larger limit (for base64 images)
+  const app = express();
+  const PORT = parseInt(process.env.PORT || '3000', 10);
+
   app.use(express.json({ limit: '10mb' }));
 
-  // File paths for persistence in workspace root
-  const PRODUCTS_FILE = path.join(process.cwd(), 'products.json');
-  const PASSWORD_FILE = path.join(process.cwd(), 'admin-password.txt');
-  const SETTINGS_FILE = path.join(process.cwd(), 'settings.json');
-  const CATEGORIES_FILE = path.join(process.cwd(), 'categories.json');
-
-  // Initial brand settings
-  const INITIAL_SETTINGS = {
-    storeName: 'Shopzy',
-    tagline: 'Premium Deals Store',
-    logo: '' // Empty by default, triggers high quality default SVG logo
-  };
-
-  const loadSettings = () => {
+  // Settings
+  app.get('/api/settings', async (req, res) => {
     try {
-      if (fs.existsSync(SETTINGS_FILE)) {
-        return JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf-8'));
-      }
+      res.json(await getSettings());
     } catch (e) {
-      console.error('Error reading settings.json', e);
+      res.status(500).json({ error: 'Failed to fetch settings' });
     }
-    return INITIAL_SETTINGS;
-  };
-
-  const saveSettings = (sets: any) => {
-    try {
-      fs.writeFileSync(SETTINGS_FILE, JSON.stringify(sets, null, 2), 'utf-8');
-    } catch (e) {
-      console.error('Error writing settings.json', e);
-    }
-  };
-
-  // Initial demo products
-  const INITIAL_PRODUCTS = [
-    {
-      id: 'prod-1',
-      title: 'Apple iPhone 15 Pro Max (256 GB) - Natural Titanium',
-      category: 'mobiles',
-      originalPrice: 159900,
-      offerPrice: 144900,
-      hasOffer: true,
-      image: '',
-      link: 'https://amazon.in',
-      description: 'Forged in titanium, featuring the revolutionary A17 Pro chip, customizable Action button, and the most powerful iPhone camera system ever with 5x optical zoom.',
-      createdAt: 1721345000000
-    },
-    {
-      id: 'prod-2',
-      title: 'Sony WH-1000XM5 Wireless Noise Cancelling Headphones',
-      category: 'electronics',
-      originalPrice: 34990,
-      offerPrice: 27999,
-      hasOffer: true,
-      image: '',
-      link: 'https://amazon.in',
-      description: 'Industry leading active noise cancellation with two processors controlling 8 microphones. Exceptional sound quality with High-Resolution Audio, and crystal clear hands-free calling.',
-      createdAt: 1721345100000
-    },
-    {
-      id: 'prod-3',
-      title: 'Samsung 108 cm (43 inches) Crystal 4K Vivid Ultra HD Smart TV',
-      category: 'electronics',
-      originalPrice: 44900,
-      offerPrice: 28990,
-      hasOffer: true,
-      image: '',
-      link: 'https://amazon.in',
-      description: '4K Vivid High Dynamic Range, PurColor technology, powerful Crystal Processor 4K, and direct access to Disney+, Netflix, Prime Video and more with pre-installed Smart OS.',
-      createdAt: 1721345200000
-    },
-    {
-      id: 'prod-4',
-      title: 'Nike Air Max Alpha Men’s Training & Running Shoes',
-      category: 'fashion',
-      originalPrice: 7495,
-      offerPrice: 5245,
-      hasOffer: true,
-      image: '',
-      link: 'https://amazon.in',
-      description: 'Finished with breathable engineered mesh and an air-padded heel unit, the Alpha offers maximum shock absorption and stability for high-intensity gym workouts or morning runs.',
-      createdAt: 1721345300000
-    }
-  ];
-
-  // Load products helper
-  const loadProducts = () => {
-    try {
-      if (fs.existsSync(PRODUCTS_FILE)) {
-        return JSON.parse(fs.readFileSync(PRODUCTS_FILE, 'utf-8'));
-      }
-    } catch (e) {
-      console.error('Error reading products.json', e);
-    }
-    return INITIAL_PRODUCTS;
-  };
-
-  // Save products helper
-  const saveProducts = (prods: any[]) => {
-    try {
-      fs.writeFileSync(PRODUCTS_FILE, JSON.stringify(prods, null, 2), 'utf-8');
-    } catch (e) {
-      console.error('Error writing products.json', e);
-    }
-  };
-
-  // Load password helper
-  const loadPassword = () => {
-    try {
-      if (fs.existsSync(PASSWORD_FILE)) {
-        return fs.readFileSync(PASSWORD_FILE, 'utf-8').trim();
-      }
-    } catch (e) {
-      console.error('Error reading admin-password.txt', e);
-    }
-    return '1234';
-  };
-
-  // Save password helper
-  const savePassword = (pass: string) => {
-    try {
-      fs.writeFileSync(PASSWORD_FILE, pass, 'utf-8');
-    } catch (e) {
-      console.error('Error writing admin-password.txt', e);
-    }
-  };
-
-  // Initial Categories
-  const INITIAL_CATEGORIES = [
-    { id: 'mobiles', label: 'Mobiles' },
-    { id: 'electronics', label: 'Electronics' },
-    { id: 'fashion', label: 'Fashion' },
-    { id: 'home', label: 'Home Decor' },
-    { id: 'other', label: 'Others' }
-  ];
-
-  const loadCategories = () => {
-    try {
-      if (fs.existsSync(CATEGORIES_FILE)) {
-        return JSON.parse(fs.readFileSync(CATEGORIES_FILE, 'utf-8'));
-      }
-    } catch (e) {
-      console.error('Error reading categories.json', e);
-    }
-    return INITIAL_CATEGORIES;
-  };
-
-  const saveCategories = (cats: any[]) => {
-    try {
-      fs.writeFileSync(CATEGORIES_FILE, JSON.stringify(cats, null, 2), 'utf-8');
-    } catch (e) {
-      console.error('Error writing categories.json', e);
-    }
-  };
-
-  // State
-  let products = loadProducts();
-  let adminPassword = loadPassword();
-  let brandSettings = loadSettings();
-  let categories = loadCategories();
-
-  // API endpoints
-  app.get('/api/settings', (req, res) => {
-    res.json(brandSettings);
   });
 
-  app.post('/api/settings', (req, res) => {
-    const { storeName, tagline, logo } = req.body;
-    brandSettings = {
-      storeName: storeName || brandSettings.storeName,
-      tagline: tagline || brandSettings.tagline,
-      logo: logo !== undefined ? logo : brandSettings.logo
-    };
-    saveSettings(brandSettings);
-    res.json({ success: true, settings: brandSettings });
-  });
-
-  app.get('/api/products', (req, res) => {
-    res.json(products);
-  });
-
-  app.post('/api/products', (req, res) => {
-    const { id, title, category, originalPrice, offerPrice, hasOffer, image, link, description } = req.body;
-    
-    if (id) {
-      // Edit
-      products = products.map((p: any) =>
-        p.id === id
-          ? { ...p, title, category, originalPrice, offerPrice, hasOffer, image, link, description }
-          : p
-      );
-    } else {
-      // New
-      const newProduct = {
-        id: 'prod-' + Date.now(),
-        title,
-        category,
-        originalPrice,
-        offerPrice,
-        hasOffer,
-        image,
-        link,
-        description,
-        createdAt: Date.now()
+  app.post('/api/settings', async (req, res) => {
+    try {
+      const { storeName, tagline, logo } = req.body;
+      const current = await getSettings();
+      const updated = {
+        storeName: storeName || current.storeName,
+        tagline: tagline || current.tagline,
+        logo: logo !== undefined ? logo : current.logo
       };
-      products = [newProduct, ...products];
-    }
-    saveProducts(products);
-    res.json({ success: true, products });
-  });
-
-  app.delete('/api/products/:id', (req, res) => {
-    const { id } = req.params;
-    products = products.filter((p: any) => p.id !== id);
-    saveProducts(products);
-    res.json({ success: true, products });
-  });
-
-  app.get('/api/password', (req, res) => {
-    res.json({ password: adminPassword });
-  });
-
-  app.post('/api/password', (req, res) => {
-    const { password } = req.body;
-    if (password) {
-      adminPassword = password;
-      savePassword(password);
-      res.json({ success: true });
-    } else {
-      res.status(400).json({ error: 'Password is required' });
+      await saveSettings(updated);
+      res.json({ success: true, settings: updated });
+    } catch (e) {
+      res.status(500).json({ error: 'Failed to update settings' });
     }
   });
 
-  app.get('/api/categories', (req, res) => {
-    res.json(categories);
-  });
-
-  app.post('/api/categories', (req, res) => {
-    const { label } = req.body;
-    if (label) {
-      const newCategory = {
-        id: 'cat-' + Date.now(),
-        label
-      };
-      categories = [...categories, newCategory];
-      saveCategories(categories);
-      res.json({ success: true, categories });
-    } else {
-      res.status(400).json({ error: 'Label is required' });
+  // Products
+  app.get('/api/products', async (req, res) => {
+    try {
+      res.json(await getProducts());
+    } catch (e) {
+      res.status(500).json({ error: 'Failed to fetch products' });
     }
   });
 
-  app.delete('/api/categories/:id', (req, res) => {
-    const { id } = req.params;
-    categories = categories.filter((c: any) => c.id !== id);
-    saveCategories(categories);
-    res.json({ success: true, categories });
+  app.post('/api/products', async (req, res) => {
+    try {
+      const { id, title, category, originalPrice, offerPrice, hasOffer, image, link, description } = req.body;
+      if (id) {
+        const updated = await saveProduct({ title, category, originalPrice, offerPrice, hasOffer, image, link, description }, id);
+        res.json({ success: true, products: updated });
+      } else {
+        const newProduct = {
+          id: 'prod-' + Date.now(),
+          title, category, originalPrice, offerPrice, hasOffer, image, link, description,
+          createdAt: Date.now()
+        };
+        const updated = await saveProduct(newProduct);
+        res.json({ success: true, products: updated });
+      }
+    } catch (e) {
+      res.status(500).json({ error: 'Failed to save product' });
+    }
   });
 
-  // Endpoint to keep server awake
+  app.delete('/api/products/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updated = await deleteProduct(id);
+      res.json({ success: true, products: updated });
+    } catch (e) {
+      res.status(500).json({ error: 'Failed to delete product' });
+    }
+  });
+
+  // Password
+  app.get('/api/password', async (req, res) => {
+    try {
+      res.json({ password: await getPassword() });
+    } catch (e) {
+      res.status(500).json({ error: 'Failed to fetch password' });
+    }
+  });
+
+  app.post('/api/password', async (req, res) => {
+    try {
+      const { password } = req.body;
+      if (password) {
+        await savePasswordToDB(password);
+        res.json({ success: true });
+      } else {
+        res.status(400).json({ error: 'Password is required' });
+      }
+    } catch (e) {
+      res.status(500).json({ error: 'Failed to update password' });
+    }
+  });
+
+  // Categories
+  app.get('/api/categories', async (req, res) => {
+    try {
+      res.json(await getCategories());
+    } catch (e) {
+      res.status(500).json({ error: 'Failed to fetch categories' });
+    }
+  });
+
+  app.post('/api/categories', async (req, res) => {
+    try {
+      const { label } = req.body;
+      if (label) {
+        const newCat = { id: 'cat-' + Date.now(), label };
+        const updated = await addCategory(newCat);
+        res.json({ success: true, categories: updated });
+      } else {
+        res.status(400).json({ error: 'Label is required' });
+      }
+    } catch (e) {
+      res.status(500).json({ error: 'Failed to add category' });
+    }
+  });
+
+  app.delete('/api/categories/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updated = await deleteCategory(id);
+      res.json({ success: true, categories: updated });
+    } catch (e) {
+      res.status(500).json({ error: 'Failed to delete category' });
+    }
+  });
+
+  // Keep-alive ping
   app.get('/api/ping', (req, res) => {
     res.json({ status: 'ok', time: new Date().toISOString() });
   });
 
-  // Vite integration
+  // Vite / Static
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({
       server: { middlewareMode: true },

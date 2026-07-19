@@ -217,6 +217,11 @@ async function startServer() {
     }
   });
 
+  // Endpoint to keep server awake
+  app.get('/api/ping', (req, res) => {
+    res.json({ status: 'ok', time: new Date().toISOString() });
+  });
+
   // Vite integration
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({

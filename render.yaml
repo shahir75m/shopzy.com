@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: shopzy
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: APP_URL
+        sync: false

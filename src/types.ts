@@ -17,12 +17,9 @@ export interface Product {
   createdAt: number;
 }
 
-export type CategoryKey = 'all' | 'mobiles' | 'electronics' | 'fashion' | 'home' | 'other';
-
 export interface Category {
-  key: CategoryKey;
+  id: string;
   label: string;
-  icon: string;
 }
 
 export interface ToastState {

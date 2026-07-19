@@ -4,22 +4,9 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import {
-  ShoppingBag,
-  Settings,
-  Search,
-  Sparkles,
-  Smartphone,
-  Laptop,
-  Shirt,
-  Home as HomeIcon,
-  Grid as GridIcon,
-  Tag,
-  AlertCircle
-} from 'lucide-react';
-
-import { Product, CategoryKey, ToastState } from './types';
-import { INITIAL_PRODUCTS, CATEGORIES } from './data';
+import { Product, Category, ToastState } from './types';
+import { INITIAL_PRODUCTS } from './data';
+import { Settings, Search, Tag, AlertCircle } from 'lucide-react';
 import ProductCard from './components/ProductCard';
 import DetailsModal from './components/DetailsModal';
 import AdminLoginModal from './components/AdminLoginModal';
@@ -35,13 +22,14 @@ export default function App() {
 
   // State definitions
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [adminPassword, setAdminPassword] = useState('1234');
-  const [selectedCategory, setSelectedCategory] = useState<CategoryKey>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   
   // Brand settings state
   const [storeName, setStoreName] = useState('Shopzy');
-  const [tagline, setTagline] = useState('Affiliate Smart Store');
+  const [tagline, setTagline] = useState('Premium Deals Store');
   const [logo, setLogo] = useState('');
 
   // Overlay Controls
@@ -81,6 +69,14 @@ export default function App() {
           setProducts(INITIAL_PRODUCTS);
         }
       });
+
+    // Fetch categories from backend
+    fetch('/api/categories')
+      .then((res) => res.json())
+      .then((data) => {
+        setCategories(data);
+      })
+      .catch((err) => console.error('Failed to fetch categories', err));
 
     // Fetch passcode from backend
     fetch('/api/password')
@@ -235,17 +231,7 @@ export default function App() {
     }
   };
 
-  // Category Icon mapper
-  const getCategoryIcon = (iconName: string) => {
-    switch (iconName) {
-      case 'Sparkles': return <Sparkles className="w-4 h-4" />;
-      case 'Smartphone': return <Smartphone className="w-4 h-4" />;
-      case 'Laptop': return <Laptop className="w-4 h-4" />;
-      case 'Shirt': return <Shirt className="w-4 h-4" />;
-      case 'Home': return <HomeIcon className="w-4 h-4" />;
-      default: return <GridIcon className="w-4 h-4" />;
-    }
-  };
+
 
   // Filter listings
   const filteredProducts = products.filter((prod) => {
@@ -266,7 +252,7 @@ export default function App() {
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-300 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400"></span>
             </span>
-            <span className="truncate tracking-wide font-semibold">Latest affiliate deals are active and updated live!</span>
+            <span className="truncate tracking-wide font-semibold">Latest premium deals are active and updated live!</span>
           </span>
           
           <button
@@ -321,18 +307,28 @@ export default function App() {
       {/* Dynamic Filter Strip (Horizontal scrolling on touch devices) */}
       <div id="category-filter-strip" className="bg-white border-b border-slate-100 py-3 overflow-x-auto whitespace-nowrap no-scrollbar sticky top-[48px] sm:top-[76px] z-30 shadow-xs">
         <div className="max-w-7xl mx-auto px-4 flex gap-2.5">
-          {CATEGORIES.map((cat) => (
+          <button
+            id="category-tab-all"
+            onClick={() => setSelectedCategory('all')}
+            className={`px-4 py-2 rounded-full text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 active:scale-95 cursor-pointer ${
+              selectedCategory === 'all'
+                ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/15'
+                : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/50'
+            }`}
+          >
+            <span>All Deals</span>
+          </button>
+          {categories.map((cat) => (
             <button
-              id={`category-tab-${cat.key}`}
-              key={cat.key}
-              onClick={() => setSelectedCategory(cat.key)}
+              id={`category-tab-${cat.id}`}
+              key={cat.id}
+              onClick={() => setSelectedCategory(cat.id)}
               className={`px-4 py-2 rounded-full text-xs sm:text-sm font-bold transition-all flex items-center gap-1.5 active:scale-95 cursor-pointer ${
-                selectedCategory === cat.key
+                selectedCategory === cat.id
                   ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/15'
                   : 'bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200/50'
               }`}
             >
-              {getCategoryIcon(cat.icon)}
               <span>{cat.label}</span>
             </button>
           ))}
@@ -432,6 +428,8 @@ export default function App() {
         visible={showAdminPanel}
         onClose={() => setShowAdminPanel(false)}
         products={products}
+        categories={categories}
+        setCategories={setCategories}
         onSaveProduct={handleSaveProduct}
         onDeleteProduct={triggerDeleteProduct}
         adminPasswordCurrent={adminPassword}

@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { Product } from '../types';
+import { Product, Category } from '../types';
 import {
   X,
   PlusCircle,
@@ -24,6 +24,8 @@ interface AdminPanelProps {
   visible: boolean;
   onClose: () => void;
   products: Product[];
+  categories: Category[];
+  setCategories: React.Dispatch<React.SetStateAction<Category[]>>;
   onSaveProduct: (product: Omit<Product, 'id' | 'createdAt'>, editId?: string) => void;
   onDeleteProduct: (id: string) => void;
   adminPasswordCurrent: string;
@@ -39,6 +41,8 @@ export default function AdminPanel({
   visible,
   onClose,
   products,
+  categories,
+  setCategories,
   onSaveProduct,
   onDeleteProduct,
   adminPasswordCurrent,
@@ -49,12 +53,13 @@ export default function AdminPanel({
   logo,
   onUpdateSettings
 }: AdminPanelProps) {
-  const [activeTab, setActiveTab] = useState<'form' | 'list' | 'brand'>('form');
+  const [activeTab, setActiveTab] = useState<'form' | 'list' | 'categories' | 'brand'>('form');
+  const [newCategoryLabel, setNewCategoryLabel] = useState('');
   const [editId, setEditId] = useState<string>('');
   
   // Form fields
   const [title, setTitle] = useState('');
-  const [category, setCategory] = useState('electronics');
+  const [category, setCategory] = useState('');
   const [orgPrice, setOrgPrice] = useState('');
   const [hasOffer, setHasOffer] = useState(false);
   const [offerPrice, setOfferPrice] = useState('');
@@ -83,13 +88,57 @@ export default function AdminPanel({
   const resetForm = () => {
     setEditId('');
     setTitle('');
-    setCategory('electronics');
+    setCategory(categories[0]?.id || '');
     setOrgPrice('');
     setHasOffer(false);
     setOfferPrice('');
     setImage('');
     setLink('');
     setDescription('');
+  };
+
+  // Set default category when categories load
+  useEffect(() => {
+    if (categories.length > 0 && !category) {
+      setCategory(categories[0].id);
+    }
+  }, [categories]);
+
+  // Category management handlers
+  const handleAddCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCategoryLabel.trim()) {
+      showToast('Please enter a category name!', 'error');
+      return;
+    }
+    try {
+      const res = await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label: newCategoryLabel.trim() })
+      });
+      const data = await res.json();
+      if (data.categories) {
+        setCategories(data.categories);
+        setNewCategoryLabel('');
+        showToast('Category added successfully!', 'success');
+      }
+    } catch (err) {
+      showToast('Error adding category', 'error');
+    }
+  };
+
+  const handleDeleteCategory = async (id: string) => {
+    try {
+      const res = await fetch(`/api/categories/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.categories) {
+        setCategories(data.categories);
+        showToast('Category deleted!', 'success');
+      }
+    } catch (err) {
+      showToast('Error deleting category', 'error');
+    }
   };
 
   // Populate form for editing
@@ -310,11 +359,11 @@ export default function AdminPanel({
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex border-b border-slate-100 bg-white flex-shrink-0">
+        <div className="flex border-b border-slate-100 bg-white flex-shrink-0 overflow-x-auto no-scrollbar">
           <button
             id="admin-tab-form-btn"
             onClick={() => setActiveTab('form')}
-            className={`flex-1 py-3 text-center text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`flex-1 min-w-fit py-3 text-center text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center justify-center gap-1.5 px-3 ${
               activeTab === 'form'
                 ? 'border-emerald-500 text-emerald-600 bg-emerald-50/5'
                 : 'border-transparent text-slate-400 hover:text-slate-600'
@@ -327,28 +376,41 @@ export default function AdminPanel({
           <button
             id="admin-tab-list-btn"
             onClick={() => setActiveTab('list')}
-            className={`flex-1 py-3 text-center text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`flex-1 min-w-fit py-3 text-center text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center justify-center gap-1.5 px-3 ${
               activeTab === 'list'
                 ? 'border-emerald-500 text-emerald-600 bg-emerald-50/5'
                 : 'border-transparent text-slate-400 hover:text-slate-600'
             }`}
           >
             <FileCode className="w-4 h-4 flex-shrink-0" />
-            <span className="hidden sm:inline">Manage Catalog ({products.length})</span>
-            <span className="sm:hidden inline">Catalog ({products.length})</span>
+            <span className="hidden sm:inline">Catalog ({products.length})</span>
+            <span className="sm:hidden inline">Catalog</span>
+          </button>
+          <button
+            id="admin-tab-categories-btn"
+            onClick={() => setActiveTab('categories')}
+            className={`flex-1 min-w-fit py-3 text-center text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center justify-center gap-1.5 px-3 ${
+              activeTab === 'categories'
+                ? 'border-emerald-500 text-emerald-600 bg-emerald-50/5'
+                : 'border-transparent text-slate-400 hover:text-slate-600'
+            }`}
+          >
+            <FolderPlus className="w-4 h-4 flex-shrink-0" />
+            <span className="hidden sm:inline">Categories</span>
+            <span className="sm:hidden inline">Cats</span>
           </button>
           <button
             id="admin-tab-brand-btn"
             onClick={() => setActiveTab('brand')}
-            className={`flex-1 py-3 text-center text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`flex-1 min-w-fit py-3 text-center text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center justify-center gap-1.5 px-3 ${
               activeTab === 'brand'
                 ? 'border-emerald-500 text-emerald-600 bg-emerald-50/5'
                 : 'border-transparent text-slate-400 hover:text-slate-600'
             }`}
           >
             <Sliders className="w-4 h-4 flex-shrink-0" />
-            <span className="hidden sm:inline">Store Branding</span>
-            <span className="sm:hidden inline">Branding</span>
+            <span className="hidden sm:inline">Branding</span>
+            <span className="sm:hidden inline">Brand</span>
           </button>
         </div>
 
@@ -395,11 +457,9 @@ export default function AdminPanel({
                   onChange={(e) => setCategory(e.target.value)}
                   className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 text-xs transition-all"
                 >
-                  <option value="mobiles">Mobiles</option>
-                  <option value="electronics">Electronics</option>
-                  <option value="fashion">Fashion</option>
-                  <option value="home">Home Decor</option>
-                  <option value="other">Others</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>{cat.label}</option>
+                  ))}
                 </select>
               </div>
 
@@ -492,7 +552,7 @@ export default function AdminPanel({
               <div>
                 <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1 flex items-center gap-1">
                   <LinkIcon className="w-3.5 h-3.5" />
-                  <span>Affiliate Destination Link *</span>
+                  <span>Product Link *</span>
                 </label>
                 <input
                   type="url"
@@ -608,6 +668,62 @@ export default function AdminPanel({
             )}
           </div>
 
+          {/* Categories Management Pane */}
+          <div
+            id="admin-categories-pane"
+            className={`w-full max-w-2xl mx-auto p-6 md:p-8 overflow-y-auto h-full ${
+              activeTab === 'categories' ? 'block' : 'hidden'
+            }`}
+          >
+            <h4 className="flex text-xs font-bold text-emerald-600 mb-4 pb-2 border-b border-slate-200 uppercase tracking-widest items-center gap-1.5">
+              <FolderPlus className="w-4 h-4" />
+              <span>Manage Categories</span>
+            </h4>
+
+            {/* Add new category */}
+            <form onSubmit={handleAddCategory} className="flex gap-2 mb-6">
+              <input
+                type="text"
+                value={newCategoryLabel}
+                onChange={(e) => setNewCategoryLabel(e.target.value)}
+                placeholder="New category name (e.g., Books)"
+                className="flex-1 px-3 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 text-xs transition-all"
+              />
+              <button
+                type="submit"
+                className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs transition-all shadow-md shadow-emerald-500/15 active:scale-95 cursor-pointer flex items-center gap-1.5"
+              >
+                <PlusCircle className="w-4 h-4" />
+                <span className="hidden sm:inline">Add</span>
+              </button>
+            </form>
+
+            {/* Existing categories list */}
+            {categories.length === 0 ? (
+              <div className="text-center py-12 text-slate-400 text-xs">
+                No categories yet. Add your first one above!
+              </div>
+            ) : (
+              <div className="space-y-2.5">
+                {categories.map((cat) => (
+                  <div
+                    key={cat.id}
+                    className="bg-white p-3.5 rounded-2xl border border-slate-200 flex justify-between items-center hover:shadow-sm transition-all"
+                  >
+                    <span className="text-xs font-bold text-slate-700">{cat.label}</span>
+                    <button
+                      id={`delete-category-btn-${cat.id}`}
+                      onClick={() => handleDeleteCategory(cat.id)}
+                      className="w-8 h-8 text-rose-500 bg-rose-50 hover:bg-rose-100 rounded-full flex items-center justify-center transition-colors active:scale-90 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
           {/* Store Branding Pane */}
           <div
             id="admin-brand-pane"
@@ -648,7 +764,7 @@ export default function AdminPanel({
                   type="text"
                   value={inputTagline}
                   onChange={(e) => setInputTagline(e.target.value)}
-                  placeholder="e.g., Affiliate Smart Store"
+                  placeholder="e.g., Premium Deals Store"
                   className="w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 text-xs transition-all"
                 />
               </div>
@@ -700,7 +816,7 @@ export default function AdminPanel({
                   type="button"
                   onClick={() => {
                     setInputStoreName('Shopzy');
-                    setInputTagline('Affiliate Smart Store');
+                    setInputTagline('Premium Deals Store');
                     setInputLogo('');
                   }}
                   className="w-1/3 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-xl text-xs transition-colors active:scale-95 cursor-pointer"

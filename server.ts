@@ -19,11 +19,12 @@ async function startServer() {
   const PRODUCTS_FILE = path.join(process.cwd(), 'products.json');
   const PASSWORD_FILE = path.join(process.cwd(), 'admin-password.txt');
   const SETTINGS_FILE = path.join(process.cwd(), 'settings.json');
+  const CATEGORIES_FILE = path.join(process.cwd(), 'categories.json');
 
   // Initial brand settings
   const INITIAL_SETTINGS = {
     storeName: 'Shopzy',
-    tagline: 'Affiliate Smart Store',
+    tagline: 'Premium Deals Store',
     logo: '' // Empty by default, triggers high quality default SVG logo
   };
 
@@ -140,10 +141,39 @@ async function startServer() {
     }
   };
 
+  // Initial Categories
+  const INITIAL_CATEGORIES = [
+    { id: 'mobiles', label: 'Mobiles' },
+    { id: 'electronics', label: 'Electronics' },
+    { id: 'fashion', label: 'Fashion' },
+    { id: 'home', label: 'Home Decor' },
+    { id: 'other', label: 'Others' }
+  ];
+
+  const loadCategories = () => {
+    try {
+      if (fs.existsSync(CATEGORIES_FILE)) {
+        return JSON.parse(fs.readFileSync(CATEGORIES_FILE, 'utf-8'));
+      }
+    } catch (e) {
+      console.error('Error reading categories.json', e);
+    }
+    return INITIAL_CATEGORIES;
+  };
+
+  const saveCategories = (cats: any[]) => {
+    try {
+      fs.writeFileSync(CATEGORIES_FILE, JSON.stringify(cats, null, 2), 'utf-8');
+    } catch (e) {
+      console.error('Error writing categories.json', e);
+    }
+  };
+
   // State
   let products = loadProducts();
   let adminPassword = loadPassword();
   let brandSettings = loadSettings();
+  let categories = loadCategories();
 
   // API endpoints
   app.get('/api/settings', (req, res) => {
@@ -215,6 +245,32 @@ async function startServer() {
     } else {
       res.status(400).json({ error: 'Password is required' });
     }
+  });
+
+  app.get('/api/categories', (req, res) => {
+    res.json(categories);
+  });
+
+  app.post('/api/categories', (req, res) => {
+    const { label } = req.body;
+    if (label) {
+      const newCategory = {
+        id: 'cat-' + Date.now(),
+        label
+      };
+      categories = [...categories, newCategory];
+      saveCategories(categories);
+      res.json({ success: true, categories });
+    } else {
+      res.status(400).json({ error: 'Label is required' });
+    }
+  });
+
+  app.delete('/api/categories/:id', (req, res) => {
+    const { id } = req.params;
+    categories = categories.filter((c: any) => c.id !== id);
+    saveCategories(categories);
+    res.json({ success: true, categories });
   });
 
   // Endpoint to keep server awake

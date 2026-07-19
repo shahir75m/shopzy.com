@@ -80,11 +80,4 @@ export const INITIAL_PRODUCTS: Product[] = [
   }
 ];
 
-export const CATEGORIES: Category[] = [
-  { key: 'all', label: 'All Deals', icon: 'Sparkles' },
-  { key: 'mobiles', label: 'Mobiles', icon: 'Smartphone' },
-  { key: 'electronics', label: 'Electronics', icon: 'Laptop' },
-  { key: 'fashion', label: 'Fashion', icon: 'Shirt' },
-  { key: 'home', label: 'Home Decor', icon: 'Home' },
-  { key: 'other', label: 'Others', icon: 'Grid' }
-];
+

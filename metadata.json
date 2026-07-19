@@ -1,0 +1,6 @@
+{
+  "name": "Shopzy",
+  "description": "A premium branded affiliate deals directory featuring real-time curation, customizable categories, powerful search, and a secure admin management portal.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

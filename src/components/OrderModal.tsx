@@ -18,6 +18,8 @@ export default function OrderModal({ product, onClose }: OrderModalProps) {
   const [area, setArea] = useState('');
   const [pincode, setPincode] = useState('');
   const [city, setCity] = useState('');
+  const [state, setState] = useState('');
+  const [mapSrc, setMapSrc] = useState('');
   const [quantity, setQuantity] = useState(1);
 
   const [isLocating, setIsLocating] = useState(false);

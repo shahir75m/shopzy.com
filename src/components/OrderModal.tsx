@@ -285,6 +285,33 @@ export default function OrderModal({ product, onClose }: OrderModalProps) {
               </div>
 
               <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Order Quantity *</label>
+                <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-2 py-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
+                    className="w-8 h-8 rounded-lg bg-white hover:bg-slate-200 text-slate-800 font-bold flex items-center justify-center text-sm shadow-xs active:scale-95 transition-colors cursor-pointer"
+                  >
+                    -
+                  </button>
+                  <input
+                    type="number"
+                    min="1"
+                    value={quantity}
+                    onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-full text-center bg-transparent font-extrabold text-xs text-slate-900 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setQuantity((prev) => prev + 1)}
+                    className="w-8 h-8 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-bold flex items-center justify-center text-sm shadow-xs active:scale-95 transition-colors cursor-pointer"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              <div>
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">House / Building Name *</label>
                 <input
                   type="text"

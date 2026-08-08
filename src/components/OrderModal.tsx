@@ -18,8 +18,7 @@ export default function OrderModal({ product, onClose }: OrderModalProps) {
   const [area, setArea] = useState('');
   const [pincode, setPincode] = useState('');
   const [city, setCity] = useState('');
-  const [state, setState] = useState('');
-  const [mapSrc, setMapSrc] = useState('');
+  const [quantity, setQuantity] = useState(1);
 
   const [isLocating, setIsLocating] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -91,9 +90,15 @@ export default function OrderModal({ product, onClose }: OrderModalProps) {
     setIsSubmitting(true);
     setErrorMessage('');
 
+    const unitPrice = product ? (product.hasOffer ? product.offerPrice : product.originalPrice) : 0;
+    const totalAmount = unitPrice * quantity;
+
     const orderPayload = {
       productTitle: product ? product.title : 'General Order',
-      productPrice: product ? (product.hasOffer ? product.offerPrice : product.originalPrice) : 0,
+      unitPrice,
+      quantity,
+      totalAmount,
+      orderStatus: 'Order Placed',
       name,
       contact,
       house,
@@ -172,24 +177,51 @@ export default function OrderModal({ product, onClose }: OrderModalProps) {
             </div>
             <p className="text-xs text-slate-500 mb-4">Complete your shipping information to place your order.</p>
 
-            {/* Selected Product Card Summary */}
+            {/* Selected Product Card Summary with Quantity Selector */}
             {product && (
-              <div className="flex items-center gap-3.5 bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 mb-5">
-                {product.image && (
-                  <img
-                    src={product.image}
-                    alt={product.title}
-                    className="w-14 h-14 object-contain rounded-xl bg-white p-1 border border-slate-100"
-                  />
-                )}
-                <div className="flex-grow min-w-0">
-                  <span className="text-[9px] text-emerald-600 font-extrabold uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded">
-                    Selected Item
-                  </span>
-                  <h4 className="text-xs sm:text-sm font-bold text-slate-900 truncate mt-0.5">{product.title}</h4>
-                  <p className="text-xs font-black text-emerald-600">
-                    ₹{product.hasOffer ? product.offerPrice.toLocaleString('en-IN') : product.originalPrice.toLocaleString('en-IN')}
-                  </p>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 mb-5">
+                <div className="flex items-center gap-3.5 min-w-0">
+                  {product.image && (
+                    <img
+                      src={product.image}
+                      alt={product.title}
+                      className="w-14 h-14 object-contain rounded-xl bg-white p-1 border border-slate-100 flex-shrink-0"
+                    />
+                  )}
+                  <div className="min-w-0">
+                    <span className="text-[9px] text-emerald-600 font-extrabold uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded">
+                      Selected Item
+                    </span>
+                    <h4 className="text-xs sm:text-sm font-bold text-slate-900 truncate mt-0.5">{product.title}</h4>
+                    <p className="text-xs font-black text-emerald-600">
+                      Total: ₹{((product.hasOffer ? product.offerPrice : product.originalPrice) * quantity).toLocaleString('en-IN')}
+                      {quantity > 1 && (
+                        <span className="text-[10px] text-slate-400 font-normal ml-1.5">
+                          (₹{(product.hasOffer ? product.offerPrice : product.originalPrice).toLocaleString('en-IN')} × {quantity})
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Quantity Controls */}
+                <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-xs self-end sm:self-auto">
+                  <span className="text-[10px] font-extrabold text-slate-400 uppercase mr-1">Qty:</span>
+                  <button
+                    type="button"
+                    onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
+                    className="w-6 h-6 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-black flex items-center justify-center text-xs active:scale-95 transition-colors cursor-pointer"
+                  >
+                    -
+                  </button>
+                  <span className="w-5 text-center font-bold text-xs text-slate-900">{quantity}</span>
+                  <button
+                    type="button"
+                    onClick={() => setQuantity((prev) => prev + 1)}
+                    className="w-6 h-6 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-700 font-black flex items-center justify-center text-xs active:scale-95 transition-colors cursor-pointer"
+                  >
+                    +
+                  </button>
                 </div>
               </div>
             )}

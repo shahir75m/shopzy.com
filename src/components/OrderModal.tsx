@@ -1,12 +1,17 @@
-// src/components/OrderModal.tsx
 import React, { useState, useEffect } from 'react';
+import { Product } from '../types';
 
 // NOTE: Replace the placeholder values below with your actual Google Form embed URL
 // and (optional) Google Maps Embed API key if you have one.
 const GOOGLE_FORM_EMBED_URL = 'YOUR_GOOGLE_FORM_EMBED_URL';
 const GOOGLE_MAPS_API_KEY = '';
 
-export default function OrderModal({ onClose }: { onClose: () => void }) {
+interface OrderModalProps {
+  product?: Product | null;
+  onClose: () => void;
+}
+
+export default function OrderModal({ product, onClose }: OrderModalProps) {
   const [name, setName] = useState('');
   const [contact, setContact] = useState('');
   const [house, setHouse] = useState('');
@@ -35,16 +40,41 @@ export default function OrderModal({ onClose }: { onClose: () => void }) {
   }, [house, road, area, pincode, city, state]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 p-6 relative overflow-y-auto max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full p-6 relative overflow-y-auto max-h-[90vh]">
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 text-slate-500 hover:text-slate-800"
+          className="absolute top-4 right-4 text-slate-400 hover:text-slate-700 bg-slate-100 hover:bg-slate-200 w-8 h-8 rounded-full flex items-center justify-center transition-colors font-bold"
         >
           ✕
         </button>
-        <h2 className="text-2xl font-bold mb-4">Place Your Order</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        
+        <h2 className="text-2xl font-bold text-slate-900 mb-1">Place Your Order</h2>
+        <p className="text-xs text-slate-500 mb-4">Enter your delivery details and fill out the order form below.</p>
+
+        {/* Selected Product Summary Card */}
+        {product && (
+          <div className="flex items-center gap-4 bg-slate-50 p-3.5 rounded-xl border border-slate-200/80 mb-5">
+            {product.image && (
+              <img
+                src={product.image}
+                alt={product.title}
+                className="w-14 h-14 object-contain rounded-lg bg-white p-1 border border-slate-100"
+              />
+            )}
+            <div className="flex-grow min-w-0">
+              <span className="text-[10px] text-emerald-600 font-bold uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded">
+                Ordering Item
+              </span>
+              <h4 className="text-sm font-bold text-slate-900 truncate mt-0.5">{product.title}</h4>
+              <p className="text-xs font-black text-emerald-600">
+                ₹{product.hasOffer ? product.offerPrice.toLocaleString('en-IN') : product.originalPrice.toLocaleString('en-IN')}
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
           <input
             type="text"
             placeholder="Name"

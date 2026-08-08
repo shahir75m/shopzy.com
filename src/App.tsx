@@ -18,6 +18,7 @@ import OrderModal from './components/OrderModal';
 
 export default function App() {
   const [showOrderModal, setShowOrderModal] = useState(false);
+  const [selectedOrderProduct, setSelectedOrderProduct] = useState<Product | null>(null);
   // Database store key
   const STORE_KEY = 'dealhub_curated_products';
   const PASS_KEY = 'dealhub_admin_passcode';
@@ -257,23 +258,15 @@ export default function App() {
             <span className="truncate tracking-wide font-semibold">Latest premium deals are active and updated live!</span>
           </span>
           
-          <div className="flex items-center gap-2">
-            <button
-              id="admin-settings-trigger-btn"
-              onClick={() => setShowLoginModal(true)}
-              className="flex items-center gap-1.5 hover:text-emerald-200 transition-colors bg-white/10 hover:bg-white/20 py-1.5 px-3.5 rounded-full text-[11px] font-bold tracking-wide flex-shrink-0 active:scale-95 cursor-pointer"
-            >
-              <Settings className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Settings (Admin)</span>
-              <span className="inline sm:hidden">Admin</span>
-            </button>
-            {/* Order Button */}
-            <button
-              id="orderBtn"
-              onClick={() => setShowOrderModal(true)}
-              className="premium-btn ml-4"
-            >Order Now</button>
-          </div>
+          <button
+            id="admin-settings-trigger-btn"
+            onClick={() => setShowLoginModal(true)}
+            className="flex items-center gap-1.5 hover:text-emerald-200 transition-colors bg-white/10 hover:bg-white/20 py-1.5 px-3.5 rounded-full text-[11px] font-bold tracking-wide flex-shrink-0 active:scale-95 cursor-pointer"
+          >
+            <Settings className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Settings (Admin)</span>
+            <span className="inline sm:hidden">Admin</span>
+          </button>
         </div>
       </div>
 
@@ -412,6 +405,13 @@ export default function App() {
                 key={prod.id}
                 product={prod}
                 onOpenDetails={handleOpenDetails}
+                onOrderNow={(p) => {
+                  setSelectedOrderProduct(p);
+                  setShowOrderModal(true);
+                }}
+                onAddToCart={(p) => {
+                  showToast(`"${p.title}" added to cart!`, 'success');
+                }}
               />
             ))}
           </div>
@@ -492,7 +492,15 @@ export default function App() {
         </div>
       </footer>
     {/* Order Modal */}
-    {showOrderModal && <OrderModal onClose={() => setShowOrderModal(false)} />}
+    {showOrderModal && (
+      <OrderModal
+        product={selectedOrderProduct}
+        onClose={() => {
+          setShowOrderModal(false);
+          setSelectedOrderProduct(null);
+        }}
+      />
+    )}
     </div>
   );
 }

@@ -5,15 +5,17 @@
 
 import React from 'react';
 import { Product } from '../types';
-import { ArrowUpRight, Tag } from 'lucide-react';
+import { Tag, ShoppingCart, ShoppingBag } from 'lucide-react';
 
 interface ProductCardProps {
   product: Product;
   onOpenDetails: (id: string) => void;
+  onOrderNow: (product: Product) => void;
+  onAddToCart: (product: Product) => void;
   key?: React.Key;
 }
 
-export default function ProductCard({ product, onOpenDetails }: ProductCardProps) {
+export default function ProductCard({ product, onOpenDetails, onOrderNow, onAddToCart }: ProductCardProps) {
   const hasOffer = product.hasOffer;
   const discountPercent = hasOffer
     ? Math.round(((product.originalPrice - product.offerPrice) / product.originalPrice) * 100)
@@ -38,8 +40,11 @@ export default function ProductCard({ product, onOpenDetails }: ProductCardProps
       id={`product-card-${product.id}`}
       className="bg-white rounded-3xl border border-slate-100 shadow-xs hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col overflow-hidden group"
     >
-      {/* Product Image Area */}
-      <div className="relative bg-slate-50 h-48 sm:h-52 flex items-center justify-center p-4 overflow-hidden">
+      {/* Product Image Area - Clicking opens details */}
+      <div 
+        className="relative bg-slate-50 h-48 sm:h-52 flex items-center justify-center p-4 overflow-hidden cursor-pointer"
+        onClick={() => onOpenDetails(product.id)}
+      >
         <img
           src={imageUrl}
           alt={product.title}
@@ -64,7 +69,10 @@ export default function ProductCard({ product, onOpenDetails }: ProductCardProps
           <span className="text-[9px] text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-md font-bold uppercase tracking-wider">
             {getCategoryLabel(product.category)}
           </span>
-          <h4 className="font-display font-bold text-slate-800 text-sm sm:text-base mt-2.5 leading-snug line-clamp-2 h-11">
+          <h4 
+            onClick={() => onOpenDetails(product.id)}
+            className="font-display font-bold text-slate-800 text-sm sm:text-base mt-2.5 leading-snug line-clamp-2 h-11 cursor-pointer hover:text-emerald-600 transition-colors"
+          >
             {product.title}
           </h4>
 
@@ -88,25 +96,24 @@ export default function ProductCard({ product, onOpenDetails }: ProductCardProps
           </div>
         </div>
 
-        {/* Action Buttons */}
-        <div className="grid grid-cols-2 gap-2.5 mt-5 pt-4 border-t border-slate-50 flex-shrink-0">
+        {/* Action Buttons: Add to Cart & Order Now */}
+        <div className="grid grid-cols-2 gap-2.5 mt-5 pt-4 border-t border-slate-100 flex-shrink-0">
           <button
-            id={`details-btn-${product.id}`}
-            onClick={() => onOpenDetails(product.id)}
-            className="py-2.5 px-3 text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-bold rounded-xl transition-colors active:scale-95 cursor-pointer"
+            id={`add-to-cart-btn-${product.id}`}
+            onClick={() => onAddToCart(product)}
+            className="py-2.5 px-3 text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
           >
-            Details
+            <ShoppingCart className="w-3.5 h-3.5 text-slate-600" />
+            <span>Add to Cart</span>
           </button>
-          <a
-            id={`link-btn-${product.id}`}
-            href={product.link}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="py-2.5 px-3 text-white bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-xs font-bold rounded-xl transition-all shadow-lg shadow-emerald-500/10 text-center flex items-center justify-center gap-1 active:scale-95"
+          <button
+            id={`order-now-btn-${product.id}`}
+            onClick={() => onOrderNow(product)}
+            className="py-2.5 px-3 text-white bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-xs font-bold rounded-xl transition-all shadow-lg shadow-emerald-500/15 flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
           >
-            <span>Get Link</span>
-            <ArrowUpRight className="w-3.5 h-3.5" />
-          </a>
+            <ShoppingBag className="w-3.5 h-3.5" />
+            <span>Order Now</span>
+          </button>
         </div>
       </div>
     </div>

@@ -273,6 +273,7 @@ export default function App() {
               onClick={() => setShowOrderModal(true)}
               className="premium-btn ml-4"
             >Order Now</button>
+          </div>
         </div>
       </div>
 

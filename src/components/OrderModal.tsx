@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Product } from '../types';
 import { MapPin, Navigation, CheckCircle2, Loader2, Send } from 'lucide-react';
 
-// Paste your Google Apps Script Web App URL here to automatically record orders in your Google Sheet!
-const GOOGLE_SHEET_WEB_APP_URL = '';
+// Google Apps Script Web App URL for automatic Google Sheet recording
+const GOOGLE_SHEET_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwAgK1MKfddoeWl2MWT8y2YDdJ8lqRS9wev4AHHT8iBuF2ozaFaP5wSRlBz3Sj5Y0QV/exec';
 
 interface OrderModalProps {
   product?: Product | null;
